@@ -12,16 +12,16 @@ const sequelize = new Sequelize(
 );
 
 // Import all models
-const User = require('./user')(sequelize);
-const Role = require('./role')(sequelize);
-const Restaurant = require('./restaurant')(sequelize);
-const Dish = require('./dish')(sequelize);
-const Category = require('./category')(sequelize);
-const Order = require('./order')(sequelize);
-const OrderItem = require('./orderItem')(sequelize);
-const Newsletter = require('./newsletter')(sequelize);
-const Contact = require('./contact')(sequelize);
-const PartnerApplication = require('./partnerApplication')(sequelize);
+const User = require('./auth/user')(sequelize);
+const Role = require('./auth/role')(sequelize);
+const Restaurant = require('./restaurant/restaurant')(sequelize);
+const Dish = require('./menu/dish')(sequelize);
+const Category = require('./menu/category')(sequelize);
+const Order = require('./order/order')(sequelize);
+const OrderItem = require('./order/orderItem')(sequelize);
+const Newsletter = require('./newsletter/newsletter')(sequelize);
+const Contact = require('./contact/contact')(sequelize);
+const PartnerApplication = require('./partner/partnerApplication')(sequelize);
 
 // Define associations
 const models = {

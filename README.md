@@ -4,6 +4,14 @@
 
 Eat Fast is a comprehensive food delivery platform backend built with Node.js, Express, and PostgreSQL. The API provides secure authentication, restaurant management, order processing, and admin functionalities with advanced security features and Cameroon-specific optimizations.
 
+---
+
+**Frontend-Backend Field Mapping Compatibility**
+
+> **Note:** The backend now includes middleware that automatically maps frontend field names (e.g., `first_name`, `user_type`, `businessName`) to backend model fields (e.g., `firstName`, `role`, `restaurantName`). This ensures seamless integration with the frontend without requiring changes to frontend code. See the `src/middleware/validation.js` file for details and extension instructions.
+
+---
+
 ## 📋 Table of Contents
 
 - [Features](#-features)
@@ -19,6 +27,7 @@ Eat Fast is a comprehensive food delivery platform backend built with Node.js, E
 - [Testing](#-testing)
 - [Deployment](#-deployment)
 - [API Documentation](#-api-documentation)
+- [Frontend-Backend Field Mapping](#frontend-backend-field-mapping)
 
 ## ✨ Features
 
@@ -97,13 +106,13 @@ Eat Fast is a comprehensive food delivery platform backend built with Node.js, E
 
 ```
 eat-fast-backend/
-├── 📁 src/
-│   ├── 📁 config/                 # Configuration files
+├── src/
+│   ├── config/                 # Configuration files
 │   │   ├── database.js            # Database configuration
 │   │   ├── redis.js               # Redis configuration
 │   │   └── security.js            # Security settings
 │   │
-│   ├── 📁 controllers/            # Route handlers
+│   ├── controllers/            # Route handlers
 │   │   ├── authController.js      # Authentication logic
 │   │   ├── adminController.js     # Admin operations
 │   │   ├── menuController.js      # Menu management
@@ -112,14 +121,14 @@ eat-fast-backend/
 │   │   ├── newsletterController.js # Newsletter operations
 │   │   └── partnerController.js   # Partner applications
 │   │
-│   ├── 📁 middleware/             # Custom middleware
+│   ├── middleware/             # Custom middleware
 │   │   ├── auth.js                # Authentication middleware
-│   │   ├── validation.js          # Input validation
+│   │   ├── validation.js          # Input validation & field mapping
 │   │   ├── upload.js              # File upload handling
 │   │   ├── rateLimiter.js         # Rate limiting
 │   │   └── security.js            # Security middleware
 │   │
-│   ├── 📁 models/                 # Database models
+│   ├── models/                 # Database models
 │   │   ├── index.js               # Sequelize configuration
 │   │   ├── user.js                # User model
 │   │   ├── role.js                # Role model
@@ -132,7 +141,7 @@ eat-fast-backend/
 │   │   ├── newsletter.js          # Newsletter subscriptions
 │   │   └── partnerApplication.js  # Partner applications
 │   │
-│   ├── 📁 routes/                 # API routes
+│   ├── routes/                 # API routes
 │   │   ├── auth.js                # Authentication routes
 │   │   ├── admin.js               # Admin routes
 │   │   ├── menu.js                # Menu routes
@@ -142,14 +151,14 @@ eat-fast-backend/
 │   │   ├── partner.js             # Partner routes
 │   │   └── public.js              # Public routes
 │   │
-│   ├── 📁 services/               # Business logic
+│   ├── services/               # Business logic
 │   │   ├── authService.js         # Authentication service
 │   │   ├── emailService.js        # Email notifications
 │   │   ├── orderService.js        # Order processing
 │   │   ├── menuService.js         # Menu operations
 │   │   └── userService.js         # User management
 │   │
-│   ├── 📁 migrations/             # Database migrations
+│   ├── migrations/             # Database migrations
 │   │   ├── 001-create-roles.js
 │   │   ├── 002-create-users.js
 │   │   ├── 003-create-categories.js
@@ -159,21 +168,21 @@ eat-fast-backend/
 │   │   ├── 007-create-order-items.js
 │   │   └── 008-create-additional-tables.js
 │   │
-│   └── 📁 seeders/                # Database seeders
+│   └── seeders/                # Database seeders
 │       ├── 001-seed-roles.js
 │       ├── 002-seed-admin-user.js
 │       ├── 003-seed-categories.js
 │       ├── 004-seed-sample-restaurant.js
 │       └── 005-seed-sample-dishes.js
 │
-├── 📁 tests/                      # Test files
-├── 📁 uploads/                    # File uploads
-├── 📄 server.js                   # Main server file
-├── 📄 package.json                # Dependencies
-├── 📄 docker-compose.yml          # Docker configuration
-├── 📄 Dockerfile                  # Docker image
-├── 📄 api-docs.yaml               # API documentation
-└── 📄 README.md                   # This file
+├── tests/                      # Test files
+├── uploads/                    # File uploads
+├── server.js                   # Main server file
+├── package.json                # Dependencies
+├── docker-compose.yml          # Docker configuration
+├── Dockerfile                  # Docker image
+├── api-docs.yaml               # API documentation
+└── README.md                   # This file
 ```
 
 ## 🔌 API Endpoints
@@ -253,11 +262,11 @@ http://localhost:3000/api/v1
 
 | Method | Endpoint | Description | Auth Required |
 |--------|----------|-------------|---------------|
-| `POST` | `/partner-applications` | Submit application | ❌ |
-| `GET` | `/partner-applications/status/:id` | Check status | ❌ |
-| `GET` | `/partner-applications/admin` | List applications | ✅ Admin |
-| `GET` | `/partner-applications/admin/:id` | Get application | ✅ Admin |
-| `PATCH` | `/partner-applications/admin/:id/status` | Update status | ✅ Admin |
+| `POST` | `/partner` | Submit application | ❌ |
+| `GET` | `/partner/status/:id` | Check status | ❌ |
+| `GET` | `/partner/admin` | List applications | ✅ Admin |
+| `GET` | `/partner/admin/:id` | Get application | ✅ Admin |
+| `PATCH` | `/partner/admin/:id/status` | Update status | ✅ Admin |
 
 ## 🗄️ Database Schema
 
@@ -271,7 +280,10 @@ users (
   last_name VARCHAR(50) NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
   phone VARCHAR(20),
-  password_hash VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255), -- Now nullable for OAuth users
+  google_id VARCHAR(255) UNIQUE, -- New field
+  profile_picture VARCHAR(500), -- New field  
+  provider ENUM('local', 'google') DEFAULT 'local', -- New field
   role_id UUID REFERENCES roles(id),
   status ENUM('pending', 'active', 'suspended', 'banned'),
   is_verified BOOLEAN DEFAULT false,
@@ -668,3 +680,15 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ---
 
 **Eat Fast Backend** - Powering the future of food delivery in Cameroon 🍽️🇨🇲
+
+---
+
+## Frontend-Backend Field Mapping
+
+The backend uses middleware in `src/middleware/validation.js` to automatically map frontend field names to backend model fields for registration, contact, and partner application. If you add new fields to the frontend, simply update the relevant mapping function in this middleware to ensure compatibility.
+
+**Example:**
+- Frontend sends `first_name`, backend maps to `firstName`.
+- Frontend sends `businessName`, backend maps to `restaurantName`.
+
+This allows the frontend and backend to evolve independently while maintaining seamless integration.

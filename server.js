@@ -10,14 +10,17 @@ const { sequelize } = require('./src/models');
 const { securityHeaders, generalLimiter } = require('./src/config/security');
 
 // Import routes
-const authRoutes = require('./src/routes/auth');
-const adminRoutes = require('./src/routes/admin');
-const menuRoutes = require('./src/routes/menu');
-const orderRoutes = require('./src/routes/orders');
-const contactRoutes = require('./src/routes/contact');
-const partnerRoutes = require('./src/routes/partner');
-const newsletterRoutes = require('./src/routes/newsletter');
-const publicRoutes = require('./src/routes/public');
+const authRoutes = require('./src/routes/auth/auth');
+const adminRoutes = require('./src/routes/admin/admin');
+const menuRoutes = require('./src/routes/menu/menu');
+const orderRoutes = require('./src/routes/order/orders');
+const contactRoutes = require('./src/routes/contact/contact');
+const partnerRoutes = require('./src/routes/partner/partner');
+const newsletterRoutes = require('./src/routes/newsletter/newsletter');
+const publicRoutes = require('./src/routes/public/public');
+const dashboardRoutes = require('./src/routes/dashboard/dashboard');
+
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -60,6 +63,7 @@ app.use(`${apiPrefix}/contact`, contactRoutes);
 app.use(`${apiPrefix}/partner-applications`, partnerRoutes);
 app.use(`${apiPrefix}/newsletter`, newsletterRoutes);
 app.use(`${apiPrefix}/public`, publicRoutes);
+app.use(`${apiPrefix}/dashboard`, dashboardRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
