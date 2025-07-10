@@ -1,8 +1,8 @@
 // src/services/googleOAuthService.js
 const { OAuth2Client } = require('google-auth-library');
-const { User, Role } = require('../models');
-const jwt = require('jsonwebtoken');
+const { User, Role } = require('../../models');
 const crypto = require('crypto');
+const authService = require('./authService');
 
 class GoogleOAuthService {
   constructor() {
@@ -13,32 +13,32 @@ class GoogleOAuthService {
     );
   }
 
-  /**
-   * Get Google OAuth authorization URL
-   */
   getAuthUrl() {
-    const state = crypto.randomBytes(32).toString('hex');
+    const state = crypto.randomBytes(16).toString('hex');
+    
     const authUrl = this.client.generateAuthUrl({
       access_type: 'offline',
       scope: [
-        'https://www.googleapis.com/auth/userinfo.profile',
-        'https://www.googleapis.com/auth/userinfo.email'
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile'
       ],
-      state: state,
+      state,
       prompt: 'consent'
     });
 
     return { authUrl, state };
   }
 
-  /**
-   * Verify Google OAuth callback and get user info
-   */
   async verifyCallback(code, state) {
     try {
-      const { tokens } = await this.client.getToken(code);
-      this.client.setCredentials(tokens);
+      // Exchange code for tokens
+      const { tokens } = await this.client.getToken({
+        code,
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI
+      });
 
+      // Set credentials and get user info
+      this.client.setCredentials(tokens);
       const ticket = await this.client.verifyIdToken({
         idToken: tokens.id_token,
         audience: process.env.GOOGLE_CLIENT_ID
@@ -55,140 +55,116 @@ class GoogleOAuthService {
         emailVerified: payload.email_verified
       };
     } catch (error) {
-      throw new Error(`Google OAuth verification failed: ${error.message}`);
+      throw new Error(`OAuth verification failed: ${error.message}`);
     }
   }
 
-  /**
-   * Handle Google OAuth login/registration with role selection
-   */
-  async handleOAuthUser(googleUserData, selectedRole = 'customer') {
+  async handleOAuthUser(googleUserData, roleName = 'customer') {
     try {
       // Check if user already exists
-      let user = await User.findOne({ 
-        where: { email: googleUserData.email },
+      let user = await User.findOne({
+        where: { googleId: googleUserData.googleId },
         include: [{ model: Role, as: 'role' }]
       });
 
-      if (user) {
-        // Update Google ID if not set
-        if (!user.googleId) {
-          await user.update({ 
-            googleId: googleUserData.googleId,
-            profilePicture: googleUserData.profilePicture,
-            isVerified: true
-          });
-        }
+      let isNewUser = false;
 
-        // Generate tokens
-        const tokens = this.generateTokens(user);
-        
-        return {
-          user: this.sanitizeUser(user),
-          tokens,
-          isNewUser: false,
-          redirectUrl: this.getRoleBasedRedirectUrl(user.role.name)
-        };
-      } else {
-        // Get selected role
-        const role = await Role.findOne({ where: { name: selectedRole } });
-        if (!role) {
-          throw new Error('Invalid role selected');
-        }
-
-        // Create new user
-        user = await User.create({
-          googleId: googleUserData.googleId,
-          email: googleUserData.email,
-          firstName: googleUserData.firstName,
-          lastName: googleUserData.lastName,
-          profilePicture: googleUserData.profilePicture,
-          roleId: role.id,
-          isVerified: true,
-          status: 'active',
-          provider: 'google'
+      // If user doesn't exist, check if email exists
+      if (!user) {
+        const existingUserByEmail = await User.findOne({
+          where: { email: googleUserData.email }
         });
 
-        // Load user with role
+        if (existingUserByEmail) {
+          // Link Google account to existing email account
+          await existingUserByEmail.update({
+            googleId: googleUserData.googleId,
+            profilePicture: googleUserData.profilePicture,
+            provider: 'google',
+            isVerified: true
+          });
+          
+          user = existingUserByEmail;
+        } else {
+          // Create new user
+          const role = await Role.findOne({ where: { name: roleName } });
+          if (!role) {
+            throw new Error('Invalid role');
+          }
+
+          user = await User.create({
+            firstName: googleUserData.firstName,
+            lastName: googleUserData.lastName,
+            email: googleUserData.email,
+            googleId: googleUserData.googleId,
+            profilePicture: googleUserData.profilePicture,
+            provider: 'google',
+            roleId: role.id,
+            status: 'active',
+            isVerified: true
+          });
+
+          isNewUser = true;
+        }
+
+        // Reload user with role
         user = await User.findByPk(user.id, {
           include: [{ model: Role, as: 'role' }]
         });
-
-        // Generate tokens
-        const tokens = this.generateTokens(user);
-
-        return {
-          user: this.sanitizeUser(user),
-          tokens,
-          isNewUser: true,
-          redirectUrl: this.getRoleBasedRedirectUrl(user.role.name)
-        };
       }
+
+      // Update last login
+      await user.update({ lastLogin: new Date() });
+
+      // Generate tokens
+      const tokens = authService.generateTokens(user);
+
+      // Determine redirect URL based on role
+      const redirectUrl = this.getRedirectUrlByRole(user.role.name);
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          role: user.role.name,
+          profilePicture: user.profilePicture
+        },
+        tokens,
+        redirectUrl,
+        isNewUser
+      };
     } catch (error) {
       throw error;
     }
   }
 
-  /**
-   * Generate JWT tokens for user
-   */
-  generateTokens(user) {
-    const payload = {
-      userId: user.id,
-      email: user.email,
-      role: user.role.name,
-      permissions: user.role.permissions
-    };
-
-    const accessToken = jwt.sign(
-      payload,
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRE || '15m' }
-    );
-
-    const refreshToken = jwt.sign(
-      { userId: user.id },
-      process.env.JWT_REFRESH_SECRET,
-      { expiresIn: process.env.JWT_REFRESH_EXPIRE || '7d' }
-    );
-
-    return { accessToken, refreshToken };
-  }
-
-  /**
-   * Get role-based redirect URL
-   */
-  getRoleBasedRedirectUrl(roleName) {
-    const redirectUrls = {
-      'admin': '/admin/dashboard',
-      'restaurant': '/restaurant/dashboard',
-      'customer': '/customer/dashboard',
-      'delivery': '/delivery/dashboard'
-    };
-
-    return redirectUrls[roleName] || '/dashboard';
-  }
-
-  /**
-   * Sanitize user data for response
-   */
-  sanitizeUser(user) {
-    const { password, passwordHash, ...sanitizedUser } = user.toJSON();
-    return sanitizedUser;
-  }
-
-  /**
-   * Validate if role is available for OAuth registration
-   */
   async getAvailableRoles() {
-    const availableRoles = await Role.findAll({
-      where: {
-        name: ['customer', 'restaurant', 'delivery'] // admin role requires special approval
-      },
-      attributes: ['id', 'name', 'description']
-    });
+    try {
+      const roles = await Role.findAll({
+        where: {
+          name: ['customer', 'restaurant_owner', 'delivery_person']
+        },
+        attributes: ['id', 'name', 'displayName', 'description']
+      });
+      
+      return roles;
+    } catch (error) {
+      throw error;
+    }
+  }
 
-    return availableRoles;
+  getRedirectUrlByRole(role) {
+    const roleRedirects = {
+      admin: '/admin/dashboard',
+      customer: '/client/dashboard',
+      restaurant_owner: '/restaurant/dashboard',
+      delivery_person: '/delivery/dashboard',
+      support_agent: '/agent/dashboard'
+    };
+
+    return roleRedirects[role] || '/';
   }
 }
 

@@ -2,6 +2,7 @@ const { Newsletter } = require('../../models');
 const { validationResult } = require('express-validator');
 const emailService = require('../../services/email/emailService');
 const crypto = require('crypto');
+const { sequelize } = require('../../models');
 
 class NewsletterController {
   async subscribe(req, res) {

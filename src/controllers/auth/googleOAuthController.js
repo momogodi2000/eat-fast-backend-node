@@ -1,7 +1,8 @@
-// src/controllers/googleOAuthController.js
+// src/controllers/auth/googleOAuthController.js
 const { validationResult } = require('express-validator');
-const googleOAuthService = require('../../services/googleOAuthService');
+const googleOAuthService = require('../../services/auth/googleOAuthService');
 const redisClient = require('../../config/redis');
+const { User } = require('../../models');
 
 class GoogleOAuthController {
   /**

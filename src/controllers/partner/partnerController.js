@@ -1,6 +1,7 @@
 const { PartnerApplication } = require('../../models');
 const { validationResult } = require('express-validator');
 const emailService = require('../../services/email/emailService');
+const { Op } = require('sequelize');
 
 class PartnerController {
   async submitApplication(req, res) {
