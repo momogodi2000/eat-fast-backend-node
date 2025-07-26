@@ -1,5 +1,6 @@
-const { Dish, Category, Restaurant } = require('../../models');
+const { Dish, Category, Restaurant, sequelize } = require('../../models');
 const { validationResult } = require('express-validator');
+const { Op } = require('sequelize');
 
 class MenuController {
   async getDishes(req, res) {

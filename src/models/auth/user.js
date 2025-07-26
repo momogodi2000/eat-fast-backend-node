@@ -120,6 +120,23 @@ module.exports = (sequelize) => {
     emailVerificationExpires: {
       type: DataTypes.DATE,
       allowNull: true
+    },
+    // Document verification fields
+    documentsStatus: {
+      type: DataTypes.ENUM('pending', 'approved', 'rejected', 'needs_review'),
+      defaultValue: 'pending'
+    },
+    rejectionReason: {
+      type: DataTypes.TEXT,
+      allowNull: true
+    },
+    address: {
+      type: DataTypes.STRING(500),
+      allowNull: true
+    },
+    dateOfBirth: {
+      type: DataTypes.DATEONLY,
+      allowNull: true
     }
   }, {
     tableName: 'users',

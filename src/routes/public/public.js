@@ -1,5 +1,5 @@
 const express = require('express');
-const publicController = require('../controllers/publicController');
+const publicController = require('../../controllers/public/publicController');
 const { generalLimiter } = require('../../config/security');
 
 const router = express.Router();

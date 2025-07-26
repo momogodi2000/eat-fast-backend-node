@@ -1,7 +1,7 @@
 // src/routes/dashboard.js
 const express = require('express');
-const { authenticateToken, requireRole } = require('../middleware/auth');
-const dashboardController = require('../controllers/dashboardController');
+const { authenticateToken, requireRole } = require('../../middleware/auth/auth');
+const dashboardController = require('../../controllers/dashboard/dashboardController');
 
 const router = express.Router();
 
@@ -9,10 +9,10 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Role-based dashboard routes
-router.get('/admin', requireRole(['admin']), dashboardController.getAdminDashboard);
-router.get('/restaurant', requireRole(['restaurant']), dashboardController.getRestaurantDashboard);
-router.get('/customer', requireRole(['customer']), dashboardController.getCustomerDashboard);
-router.get('/delivery', requireRole(['delivery']), dashboardController.getDeliveryDashboard);
+router.get('/admin', requireRole(['administrator']), dashboardController.getAdminDashboard);
+router.get('/restaurant', requireRole(['restaurant_manager']), dashboardController.getRestaurantDashboard);
+router.get('/customer', requireRole(['client']), dashboardController.getCustomerDashboard);
+router.get('/delivery', requireRole(['delivery_agent']), dashboardController.getDeliveryDashboard);
 
 // General dashboard route (redirects based on role)
 router.get('/', dashboardController.redirectToDashboard);
